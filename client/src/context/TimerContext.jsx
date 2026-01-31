@@ -48,7 +48,7 @@ export const TimerProvider = ({ children }) => {
     const hours = (seconds / 3600).toFixed(2);
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA');
       
       const payload = {
         date: today,
