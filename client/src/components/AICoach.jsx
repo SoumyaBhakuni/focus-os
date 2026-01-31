@@ -11,7 +11,10 @@ export default function AICoach() {
     setLoading(true);
     try {
       const res = await axios.post('http://localhost:5000/api/ai/analyze');
-      setAdvice(res.data.advice);
+      
+      // FIX: Changed .advice to .analysis to match your backend
+      setAdvice(res.data.analysis); 
+      
       toast.success('Analysis Complete');
     } catch (err) {
       toast.error('AI Unreachable');

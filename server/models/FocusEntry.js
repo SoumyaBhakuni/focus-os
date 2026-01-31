@@ -9,18 +9,29 @@ const SessionSchema = new mongoose.Schema({
 });
 
 const FocusEntrySchema = new mongoose.Schema({
+  // --- 1. NEW: Link data to the specific user ---
+  user: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+  
+  // --- 2. FIX: Date is NOT unique globally anymore ---
   date: {
     type: String, 
-    required: true,
-    unique: true
+    required: true
+    // removed 'unique: true' from here
   },
-  // Instead of a fixed object, we now have an array of sessions
+
   sessions: [SessionSchema], 
-  
-  // We can keep daily notes/reflection
   notes: { type: String, default: '' }
 }, {
   timestamps: true
 });
+
+// --- 3. COMPOUND INDEX: Unique Date PER USER ---
+// This ensures YOU can't have two entries for today, 
+// but YOU and ANOTHER USER can both log today.
+FocusEntrySchema.index({ user: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('FocusEntry', FocusEntrySchema);

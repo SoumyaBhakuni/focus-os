@@ -62,4 +62,62 @@ router.get('/user', auth, async (req, res) => {
   }
 });
 
+// ... existing imports and register/login routes ...
+
+// @route   PUT /api/auth/tracks
+// @desc    Update the entire list of roadmap tracks
+router.put('/tracks', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    user.tracks = req.body.tracks;
+    await user.save();
+    res.json(user.tracks);
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT /api/auth/todos
+// @desc    Update the entire todo list
+router.put('/todos', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    user.todos = req.body.todos;
+    await user.save();
+    res.json(user.todos);
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT /api/auth/update
+// @desc    Update user details (Tracks & Topics)
+router.put('/update', auth, async (req, res) => {
+  try {
+    const { tracks } = req.body;
+
+    // Find user
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    // Update tracks if provided
+    if (tracks) user.tracks = tracks;
+
+    await user.save();
+
+    // Return the updated user so frontend can refresh immediately
+    res.json({ 
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        tracks: user.tracks
+      }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

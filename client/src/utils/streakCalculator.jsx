@@ -1,34 +1,52 @@
-import { differenceInDays, parseISO } from 'date-fns';
-
-export function calculateStreak(entries) {
+export const calculateStreak = (entries) => {
   if (!entries || entries.length === 0) return 0;
 
   // 1. Sort entries by date (newest first)
   const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
-  
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-  // 2. Check if streak is alive (did we work today or yesterday?)
-  const lastEntryDate = sorted[0].date;
-  if (lastEntryDate !== today && lastEntryDate !== yesterday) {
-    return 0; // Streak broken
+  // 2. Get unique dates where you actually worked (focused > 0)
+  const activeDates = new Set();
+  sorted.forEach(entry => {
+    const totalFocus = entry.sessions.reduce((sum, s) => sum + (s.focused || 0), 0);
+    if (totalFocus > 0) {
+      activeDates.add(entry.date.split('T')[0]);
+    }
+  });
+
+  if (activeDates.size === 0) return 0;
+
+  // 3. Setup Dates (Local Time safe)
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  // 4. Check if streak is alive
+  // To have a streak, you must have worked Today OR Yesterday.
+  if (!activeDates.has(todayStr) && !activeDates.has(yesterdayStr)) {
+    return 0; 
   }
 
-  // 3. Count backwards
-  let streak = 1;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const current = parseISO(sorted[i].date);
-    const next = parseISO(sorted[i+1].date);
-    
-    const diff = differenceInDays(current, next);
+  // 5. Count backwards
+  let streak = 0;
+  let currentCheck = new Date(); // Start from today
+  
+  // If we haven't worked today yet, start counting from yesterday
+  if (!activeDates.has(todayStr)) {
+     currentCheck.setDate(currentCheck.getDate() - 1);
+  }
 
-    if (diff === 1) {
+  while (true) {
+    const checkStr = currentCheck.toISOString().split('T')[0];
+    if (activeDates.has(checkStr)) {
       streak++;
+      currentCheck.setDate(currentCheck.getDate() - 1); // Go back 1 day
     } else {
-      break; // Gap found, stop counting
+      break; // Chain broken
     }
   }
 
   return streak;
-}
+};

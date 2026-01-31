@@ -17,12 +17,12 @@ import {
   Target,
   Zap,
   Calendar,
-  Filter,
-  ArrowRight,
   Layers,
+  ArrowRight,
+  RefreshCw, // New Import for Sync Button
 } from "lucide-react";
 import FocusHeatmap from "./FocusHeatmap";
-import AICoach from './AICoach'; // Import
+import AICoach from './AICoach';
 
 const TIME_RANGES = [
   { label: "Last 7 Days", value: "7" },
@@ -42,8 +42,9 @@ export default function Dashboard() {
   const [customEnd, setCustomEnd] = useState(today);
 
   const [loading, setLoading] = useState(true);
-
-  // We will dynamically find all categories present in your data
+  const [isRefreshing, setIsRefreshing] = useState(false); // State for manual refresh button
+  
+  // Dynamically find all categories present in your data
   const [availableCategories, setAvailableCategories] = useState(["All"]);
 
   useEffect(() => {
@@ -71,12 +72,21 @@ export default function Dashboard() {
     }
   };
 
+  // --- HANDLE MANUAL REFRESH ---
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setTimeout(() => setIsRefreshing(false), 500); // Visual feedback delay
+  };
+
   const { timelineData, categoryData, stats } = useMemo(() => {
     if (rawEntries.length === 0)
       return { timelineData: [], categoryData: [], stats: {} };
 
-    // 1. FILTER ENTRIES BY TIME
+    // 1. FILTER ENTRIES BY TIME (ROBUST LOGIC)
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Reset to midnight for accurate comparison
+
     const timeFilteredEntries = rawEntries.filter((entry) => {
       // Custom Range
       if (timeRange === "custom") {
@@ -87,24 +97,30 @@ export default function Dashboard() {
 
       // Relative Range (Last X Days)
       const entryDate = new Date(entry.date);
+      entryDate.setHours(0, 0, 0, 0); // Reset to midnight (Fixes Timezone/Today bugs)
+      
       const diffTime = Math.abs(now - entryDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= parseInt(timeRange);
+      
+      // Allow a small buffer for timezone shifts
+      return diffDays <= (parseInt(timeRange) + 1);
     });
 
     // 2. AGGREGATE DATA
     let totalFocused = 0;
     let totalAssigned = 0;
 
-    // We use a Map to store totals per category (e.g., "DSA": {focused: 10, assigned: 12})
+    // We use a Map to store totals per category
     const catStats = {};
 
     // 3. PROCESS TIMELINE & CATEGORIES
-    const timeline = timeFilteredEntries.map((entry) => {
+    // Sort chronologically first for the line chart
+    const sortedEntries = [...timeFilteredEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const timeline = sortedEntries.map((entry) => {
       let dailyFocused = 0;
       let dailyAssigned = 0;
 
-      // Loop through the NEW 'sessions' array
       if (entry.sessions) {
         entry.sessions.forEach((session) => {
           // Check Category Filter
@@ -143,7 +159,6 @@ export default function Dashboard() {
     });
 
     // 4. PREPARE BAR CHART DATA
-    // Convert our catStats object into an array for Recharts
     const catChart = Object.keys(catStats).map((catName) => ({
       name: catName,
       focused: catStats[catName].focused,
@@ -174,21 +189,37 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* 1. AI Coach Section (Top of Dashboard) */}
+      
+      {/* 1. AI Coach Section */}
       <AICoach />
+      
       {/* HEADER SECTION */}
       <div className="flex flex-col gap-6 pb-6 border-b border-white/10">
-        <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">
-            Analytics Command
-          </h2>
-          <p className="text-zinc-400 mt-1">
-            Deep dive into your cognitive performance metrics.
-          </p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h2 className="text-3xl font-bold text-white tracking-tight">
+              Analytics Command
+            </h2>
+            <p className="text-zinc-400 mt-1">
+              Deep dive into your cognitive performance metrics.
+            </p>
+          </div>
+
+          {/* SYNC BUTTON */}
+          <button 
+            onClick={handleRefresh}
+            className={`
+              p-3 rounded-xl border border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 transition-all
+              ${isRefreshing ? 'animate-spin text-primary border-primary shadow-[0_0_15px_rgba(34,197,94,0.3)]' : ''}
+            `}
+            title="Sync Data"
+          >
+            <RefreshCw size={20} />
+          </button>
         </div>
 
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-          {/* CATEGORY FILTER (Dynamic) */}
+          {/* CATEGORY FILTER */}
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center gap-2 text-zinc-500 mr-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
               <Layers size={14} />{" "}
@@ -235,7 +266,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* CUSTOM DATE INPUTS (Only if 'Custom' selected) */}
+        {/* CUSTOM DATE INPUTS */}
         {timeRange === "custom" && (
           <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 inline-flex self-start">
             <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
@@ -291,6 +322,7 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* HEATMAP */}
       <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-sm mb-8">
         <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider flex items-center gap-2">
           <Calendar size={16} /> Consistency Matrix

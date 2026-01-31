@@ -1,62 +1,115 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { useContext } from 'react';
-import { AuthProvider, AuthContext } from './context/AuthContext'; // Import Context
+import { AuthProvider, AuthContext } from './context/AuthContext';
+import { TimerProvider } from './context/TimerContext'; 
 
-import Sidebar from './components/Sidebar';
-import Home from './components/Home';
-import DailyEntryForm from './components/DailyEntryForm';
-import Dashboard from './components/Dashboard';
+// Components
 import Login from './pages/Login';
 import Register from './pages/Register';
-import FocusMode from './components/FocusMode'; // <--- Import
+import Home from './components/Home';
+import Dashboard from './components/Dashboard';
+import DailyEntryForm from './components/DailyEntryForm';
+import Sidebar from './components/Sidebar';
+import FocusMode from './components/FocusMode';
+import Settings from './components/Settings';
+import Analytics from './components/Analytics';
 
-// Protected Route Component
+// Protected Route Wrapper
 const PrivateRoute = ({ children }) => {
-  const { user, loading } = useContext(AuthContext);
-  if (loading) return <div className="text-zinc-500 p-10">Initializing Secure Context...</div>;
-  return user ? children : <Navigate to="/login" />;
+  const { token, loading } = useContext(AuthContext);
+  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-black text-zinc-500">Initializing FocusOS...</div>;
+  return token ? children : <Navigate to="/login" />;
 };
 
-// Layout Wrapper (Sidebar + Content)
-const Layout = ({ children }) => (
-  <div className="flex min-h-screen bg-[#09090b] text-white font-sans selection:bg-primary/30">
-    <Sidebar />
-    <main className="flex-1 ml-64 relative">
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-green-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[400px] h-[400px] bg-purple-500/5 rounded-full blur-[120px]" />
-      </div>
-      <div className="relative z-10 p-8 min-h-screen">
-        {children}
-      </div>
-    </main>
-  </div>
-);
+// Layout Wrapper (Sidebar + Page Content)
+const Layout = ({ children }) => {
+  return (
+    <div className="flex min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-black">
+      
+      {/* Sidebar stays fixed on the left */}
+      <Sidebar />
+      
+      {/* Main content area */}
+      <main className="flex-1 p-8 overflow-y-auto h-screen custom-scrollbar relative">
+        <div className="max-w-7xl mx-auto">
+           {children}
+        </div>
+      </main>
+      
+    </div>
+  );
+};
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Toaster position="top-right" theme="dark" richColors closeButton />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <TimerProvider>
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Private Routes (Wrapped in Layout) */}
-          <Route path="/" element={<PrivateRoute><Layout><Home /></Layout></PrivateRoute>} />
-          <Route path="/log" element={<PrivateRoute><Layout><div className="max-w-4xl mx-auto py-8"><DailyEntryForm /></div></Layout></PrivateRoute>} />
-          <Route path="/analytics" element={<PrivateRoute><Layout><div className="max-w-6xl mx-auto py-4"><Dashboard /></div></Layout></PrivateRoute>} />
-          <Route path="/focus" element={
-    <PrivateRoute>
-      <Layout>
-        <FocusMode /> {/* <--- New Route */}
-      </Layout>
-    </PrivateRoute>
-  } />
-        </Routes>
-      </Router>
+            {/* --- CORE WORKSPACES --- */}
+            
+            {/* 1. HOME (Landing Page) */}
+            <Route path="/" element={
+              <PrivateRoute>
+                <Layout>
+                  <Home />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* 2. DASHBOARD (AI & Stats) */}
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* 3. ANALYTICS (Charts) */}
+            <Route path="/analytics" element={
+              <PrivateRoute>
+                <Layout>
+                  <Analytics /> 
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* --- TOOLS --- */}
+
+            <Route path="/log" element={
+              <PrivateRoute>
+                <Layout>
+                  <DailyEntryForm />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/focus" element={
+              <PrivateRoute>
+                <Layout>
+                  <FocusMode />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/settings" element={
+              <PrivateRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+      </TimerProvider>
     </AuthProvider>
   );
 }

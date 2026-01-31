@@ -25,7 +25,10 @@ export const AuthProvider = ({ children }) => {
         const res = await axios.get('http://localhost:5000/api/auth/user');
         setUser(res.data);
       } catch (err) {
-        logout();
+        console.error("Load user failed", err);
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
       }
     }
     setLoading(false);
@@ -51,7 +54,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    // --- THE FIX IS IN THIS LINE BELOW (Added loadUser) ---
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, loadUser }}>
       {children}
     </AuthContext.Provider>
   );
