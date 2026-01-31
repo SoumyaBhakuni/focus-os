@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   const loadUser = async () => {
     if (token) {
       try {
-        const res = await axios.get('http://localhost:5000/api/auth/user');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/user`);
         setUser(res.data);
       } catch (err) {
         console.error("Load user failed", err);
@@ -35,13 +35,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password) => {
-    const res = await axios.post('http://localhost:5000/api/auth/login', { username, password });
+    const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { username, password });
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
   };
 
   const register = async (username, password) => {
-    const res = await axios.post('http://localhost:5000/api/auth/register', { username, password });
+    const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, { username, password });
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
   };

@@ -38,7 +38,7 @@ export default function Settings() {
       // If not, we can assume we update via the same auth endpoint logic.
       // For now, let's assume we update the user object locally and sync.
       
-      const res = await axios.put('http://localhost:5000/api/auth/update', { 
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/api/auth/update`, { 
         tracks: cleanTracks 
       });
 

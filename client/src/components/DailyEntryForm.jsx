@@ -31,7 +31,7 @@ export default function DailyEntryForm() {
   // 2. Fetch Logs
   const fetchLogs = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/focus');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
       setLogs(res.data);
       
       const todayStr = new Date().toISOString().split('T')[0];
@@ -87,9 +87,9 @@ export default function DailyEntryForm() {
 
     try {
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/focus/${editingId}`, { sessions: cleanSessions, notes });
+        await axios.put(`${import.meta.env.VITE_API_URL}/api/focus/${editingId}`, { sessions: cleanSessions, notes });
       } else {
-        const res = await axios.post('http://localhost:5000/api/focus', { date, sessions: cleanSessions, notes });
+        const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/focus`, { date, sessions: cleanSessions, notes });
         setEditingId(res.data._id);
       }
       
@@ -102,7 +102,7 @@ export default function DailyEntryForm() {
       setShowModal(true); // <--- OPEN MODAL
       
       // Refresh background data
-      const res = await axios.get('http://localhost:5000/api/focus');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
       setLogs(res.data);
 
     } catch (err) {
@@ -114,7 +114,7 @@ export default function DailyEntryForm() {
   const handleDelete = async (id) => {
     if(!window.confirm("Delete this entire day?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/focus/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/focus/${id}`);
       toast.success('Entry Deleted');
       if (id === editingId) {
         setEditingId(null);

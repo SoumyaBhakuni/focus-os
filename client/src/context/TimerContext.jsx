@@ -63,7 +63,7 @@ export const TimerProvider = ({ children }) => {
         // Note: We removed the 'notes' field previously to protect your manual reflection
       };
 
-      await axios.post('http://localhost:5000/api/focus', payload);
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/focus`, payload);
       
       toast.success('Session Logged', { description: `${hours} hrs added to ${activeTrack.name}.` });
       discardSession();

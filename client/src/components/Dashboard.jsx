@@ -53,7 +53,7 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/focus");
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
       setRawEntries(res.data);
 
       // Extract all unique categories ever used

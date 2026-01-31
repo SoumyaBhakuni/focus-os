@@ -9,7 +9,10 @@ const aiRoutes = require('./routes/ai');
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow Vercel to talk to Render
+  credentials: true
+}));
 
 // --- NEW LINE 1: Import Routes ---
 const focusRoutes = require('./routes/focus');

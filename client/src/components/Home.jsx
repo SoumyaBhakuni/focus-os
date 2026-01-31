@@ -16,7 +16,7 @@ export default function Home() {
     const getStreak = async () => {
       try {
         // Fetch only necessary data for streak calculation
-        const res = await axios.get('http://localhost:5000/api/focus');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
         setStreak(calculateStreak(res.data));
         setLoading(false);
       } catch (err) {

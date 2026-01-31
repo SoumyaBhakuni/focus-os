@@ -10,7 +10,7 @@ export default function AICoach() {
   const getCoaching = async () => {
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/ai/analyze');
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/ai/analyze`);
       
       // FIX: Changed .advice to .analysis to match your backend
       setAdvice(res.data.analysis); 

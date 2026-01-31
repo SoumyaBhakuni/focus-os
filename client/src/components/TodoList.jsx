@@ -28,7 +28,7 @@ export default function TodoList() {
 
   const syncTodos = async (todos) => {
     try {
-      await axios.put('http://localhost:5000/api/auth/todos', { todos });
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/auth/todos`, { todos });
       loadUser();
     } catch (err) {
       console.error(err);
