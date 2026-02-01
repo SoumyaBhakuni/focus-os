@@ -91,21 +91,25 @@ router.put('/todos', auth, async (req, res) => {
 });
 
 // @route   PUT /api/auth/update
-// @desc    Update user details (Tracks & Topics)
+// @desc    Force update tracks (Add/Remove/Edit)
 router.put('/update', auth, async (req, res) => {
   try {
     const { tracks } = req.body;
 
-    // Find user
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Update tracks if provided
-    if (tracks) user.tracks = tracks;
+    // FIX: Explicitly overwrite the array. 
+    // We map to a clean object to strip any old '_id's that might confuse Mongoose.
+    if (tracks) {
+      user.tracks = tracks.map(t => ({
+        name: t.name,
+        currentTopic: t.currentTopic || '' // Ensure topic is never null
+      }));
+    }
 
     await user.save();
 
-    // Return the updated user so frontend can refresh immediately
     res.json({ 
       user: {
         id: user.id,
@@ -115,7 +119,7 @@ router.put('/update', auth, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err.message);
+    console.error("Settings Update Error:", err.message);
     res.status(500).send('Server Error');
   }
 });

@@ -1,112 +1,113 @@
-import { useState, useContext } from 'react';
-import { Save, Plus, Trash2, Settings as SettingsIcon, Layers } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { Plus, Save, Trash2, Settings as GearIcon, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { AuthContext } from '../context/AuthContext';
 
 export default function Settings() {
-  const { user, login } = useContext(AuthContext); // We use login to re-save user data
-  const [tracks, setTracks] = useState(user?.tracks || []);
+  const { user, loadUser } = useContext(AuthContext);
+  const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Handle Input Changes
-  const handleTrackChange = (index, field, value) => {
+  // Load initial tracks from user profile
+  useEffect(() => {
+    if (user && user.tracks) {
+      setTracks(user.tracks);
+    }
+  }, [user]);
+
+  // 1. HANDLE TEXT CHANGE (Topics/Names)
+  const handleChange = (index, field, value) => {
     const newTracks = [...tracks];
     newTracks[index][field] = value;
     setTracks(newTracks);
   };
 
-  // Add New Track
+  // 2. HANDLE ADD (New Subject)
   const addTrack = () => {
-    setTracks([...tracks, { name: '', currentTopic: '' }]);
+    // Adds a clean new object
+    setTracks([...tracks, { name: 'New Subject', currentTopic: 'Chapter 1' }]);
   };
 
-  // Remove Track
+  // 3. HANDLE REMOVE (Delete Subject)
   const removeTrack = (index) => {
-    setTracks(tracks.filter((_, i) => i !== index));
+    // Filters out the item at 'index'
+    const newTracks = tracks.filter((_, i) => i !== index);
+    setTracks(newTracks);
   };
 
-  // Save to Backend
+  // 4. SUBMIT (The Fix)
   const saveSettings = async () => {
     setLoading(true);
     try {
-      // Filter out empty rows
-      const cleanTracks = tracks.filter(t => t.name.trim() !== '');
-
-      // We need to send this to a user update endpoint. 
-      // Assuming you have a route like PUT /api/auth/update or similar.
-      // If not, we can assume we update via the same auth endpoint logic.
-      // For now, let's assume we update the user object locally and sync.
+      // Send the clean 'tracks' array directly
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/auth/update`, { tracks });
       
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/api/auth/update`, { 
-        tracks: cleanTracks 
-      });
-
-      // Update Local Context
-      login(res.data.token, res.data.user);
-      toast.success('Configuration Saved');
+      // Refresh the global user state so other components (Sidebar/Timer) see changes instantly
+      await loadUser(); 
+      
+      toast.success('System Configuration Updated');
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save settings');
-    } finally {
-      setLoading(false);
+      toast.error('Update Failed');
     }
+    setLoading(false);
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 space-y-10 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-500">
       
-      {/* Header */}
-      <div className="border-b border-white/10 pb-6">
-        <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-          <SettingsIcon className="text-zinc-500" /> System Configuration
-        </h2>
-        <p className="text-zinc-400 mt-2">
-          Define your active protocols. Targets are now managed daily in the Manual Log.
-        </p>
+      <div className="mb-8 flex items-center gap-3">
+        <div className="bg-zinc-800 p-3 rounded-xl">
+          <GearIcon className="text-white" size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-white">System Configuration</h2>
+          <p className="text-zinc-400">Define your active protocols. Targets are managed daily in the Manual Log.</p>
+        </div>
       </div>
 
-      {/* Track Editor */}
-      <div className="bg-zinc-900/30 border border-white/10 rounded-3xl p-8">
-        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-           <Layers className="text-primary" /> Active Tracks
+      <div className="bg-zinc-900/50 border border-white/10 rounded-3xl p-8">
+        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full"/> Active Tracks
         </h3>
 
         <div className="space-y-4">
           <div className="grid grid-cols-12 gap-4 px-2 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-wider">
-             <div className="col-span-4">Track Name</div>
-             <div className="col-span-7">Current Topic / Focus</div>
-             <div className="col-span-1">Action</div>
+            <div className="col-span-4">Track Name</div>
+            <div className="col-span-7">Current Topic / Focus</div>
+            <div className="col-span-1 text-center">Action</div>
           </div>
 
           {tracks.map((track, index) => (
-            <div key={index} className="grid grid-cols-12 gap-4 items-center bg-black/40 p-3 rounded-xl border border-white/5">
+            <div key={index} className="grid grid-cols-12 gap-4 items-center bg-black/40 p-3 rounded-xl border border-white/5 transition-colors hover:border-white/10">
               
-              {/* Track Name */}
+              {/* Name Input */}
               <div className="col-span-4">
-                <input
+                <input 
                   value={track.name}
-                  onChange={(e) => handleTrackChange(index, 'name', e.target.value)}
+                  onChange={(e) => handleChange(index, 'name', e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white font-bold outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all"
                   placeholder="e.g. DSA"
-                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white font-bold outline-none focus:border-primary"
                 />
               </div>
 
-              {/* Current Topic */}
+              {/* Topic Input */}
               <div className="col-span-7">
-                <input
+                <input 
                   value={track.currentTopic}
-                  onChange={(e) => handleTrackChange(index, 'currentTopic', e.target.value)}
-                  placeholder="e.g. Graphs & Trees"
-                  className="w-full bg-transparent border-b border-white/10 p-3 text-zinc-300 outline-none focus:border-primary focus:text-white transition-all"
+                  onChange={(e) => handleChange(index, 'currentTopic', e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-zinc-300 outline-none focus:border-white/30 transition-all"
+                  placeholder="e.g. Graphs"
                 />
               </div>
 
-              {/* Delete */}
+              {/* Delete Button */}
               <div className="col-span-1 flex justify-center">
                 <button 
                   onClick={() => removeTrack(index)}
-                  className="p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-3 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                  title="Delete Track"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -116,26 +117,31 @@ export default function Settings() {
           ))}
         </div>
 
-        <div className="mt-6 flex gap-4">
+        {/* Add Button */}
+        <button 
+          onClick={addTrack}
+          className="mt-6 flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 px-4 py-2 rounded-lg border border-transparent hover:border-white/20"
+        >
+          <Plus size={14} /> Add New Track
+        </button>
+
+        {/* Footer Actions */}
+        <div className="mt-12 pt-6 border-t border-white/5 flex justify-end">
            <button 
-             onClick={addTrack}
-             className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-3 rounded-xl transition-all"
-           >
-             <Plus size={16} /> Add New Track
-           </button>
+            onClick={saveSettings}
+            disabled={loading}
+            className="bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-zinc-200 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : <><Save size={18} /> Commit Changes</>}
+          </button>
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end pt-6 border-t border-white/10">
-        <button 
-          onClick={saveSettings}
-          disabled={loading}
-          className="bg-white text-black hover:bg-zinc-200 px-8 py-4 rounded-xl font-bold text-lg flex items-center gap-2 transition-all disabled:opacity-50"
-        >
-          {loading ? <span className="animate-spin">⏳</span> : <Save size={20} />} 
-          {loading ? 'Saving...' : 'Commit Changes'}
-        </button>
+      <div className="mt-8 flex items-start gap-3 bg-yellow-500/5 border border-yellow-500/10 p-4 rounded-xl">
+        <AlertTriangle className="text-yellow-500 shrink-0" size={20} />
+        <p className="text-sm text-yellow-500/80 leading-relaxed">
+          <strong>Note:</strong> Renaming a track here updates it for <em>future</em> sessions. Historical logs will keep the old name to preserve data integrity.
+        </p>
       </div>
 
     </div>
