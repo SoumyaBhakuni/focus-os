@@ -1,8 +1,9 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Plus, Save, Trash2, Edit2, BookOpen, X, CheckCircle, Trophy, Target } from 'lucide-react';
+import { Plus, Save, Trash2, Edit2, BookOpen, X, CheckCircle, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthContext } from '../context/AuthContext';
+import { getTodayIST } from '../utils/dateHelpers'; // <--- CRITICAL FIX
 
 export default function DailyEntryForm() {
   const { user } = useContext(AuthContext);
@@ -13,10 +14,13 @@ export default function DailyEntryForm() {
 
   // Form State
   const [editingId, setEditingId] = useState(null);
-  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
+  
+  // 1. USE IST DATE (Fixes the "Stuck on Jan 31" issue)
+  const [date, setDate] = useState(getTodayIST());
+  
   const [notes, setNotes] = useState('');
   const [sessions, setSessions] = useState([
-    { category: 'Maths', subCategory: '', focused: 0, assigned: 0 }
+    { category: 'DSA', subCategory: '', focused: 0, assigned: 0 }
   ]);
 
   // MODAL STATE
@@ -26,19 +30,24 @@ export default function DailyEntryForm() {
   // 1. INITIAL LOAD
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [user]); // Re-run when user loads (to get tracks)
 
-  // 2. Fetch Logs
+  // 2. Fetch Logs & CHECK DATE
   const fetchLogs = async () => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
       setLogs(res.data);
       
-      const todayStr = new Date().toISOString().split('T')[0];
+      // CRITICAL: Check against IST Today, not UTC
+      const todayStr = getTodayIST();
       const todayLog = res.data.find(l => l.date === todayStr);
 
       if (todayLog) {
         loadEntryIntoForm(todayLog);
+      } else {
+        // If no log exists for *today* (IST), explicitly RESET the form.
+        // This prevents yesterday's data from sticking around past midnight.
+        resetFormForNewDay(todayStr);
       }
       
       setLoading(false);
@@ -48,16 +57,54 @@ export default function DailyEntryForm() {
     }
   };
 
+  // Helper: Clear form for a fresh day
+  const resetFormForNewDay = (todayStr) => {
+    setDate(todayStr);
+    setEditingId(null);
+    setNotes('');
+    
+    // Pre-fill with user's active tracks from Settings
+    if (user && user.tracks && user.tracks.length > 0) {
+      const defaultSessions = user.tracks.map(track => ({
+        category: track.name,
+        subCategory: track.currentTopic || '',
+        focused: 0,
+        assigned: 0
+      }));
+      setSessions(defaultSessions);
+    } else {
+      setSessions([{ category: 'DSA', subCategory: '', focused: 0, assigned: 0 }]);
+    }
+  };
+
   const loadEntryIntoForm = (log) => {
     setEditingId(log._id);
     setDate(log.date);
     setNotes(log.notes || '');
-    setSessions(log.sessions.map(s => ({
-      category: s.category,
-      subCategory: s.subCategory,
-      focused: s.focused,
-      assigned: s.assigned
-    })));
+    
+    // Merge existing log data with current User Tracks
+    // This ensures that if you added a new Subject in Settings, it appears here
+    if (user && user.tracks) {
+      const mergedSessions = user.tracks.map(track => {
+        // Find if this track was already logged today
+        const existing = log.sessions.find(s => s.category === track.name);
+        return existing ? existing : {
+          category: track.name,
+          subCategory: track.currentTopic || '',
+          focused: 0,
+          assigned: 0
+        };
+      });
+      
+      // Also keep any "Sudden" or extra tracks logged that aren't in settings
+      const extraSessions = log.sessions.filter(s => 
+        !user.tracks.find(t => t.name === s.category)
+      );
+
+      setSessions([...mergedSessions, ...extraSessions]);
+    } else {
+      setSessions(log.sessions);
+    }
   };
 
   // Form Handlers
@@ -68,14 +115,14 @@ export default function DailyEntryForm() {
   };
 
   const addSessionRow = () => {
-    setSessions([...sessions, { category: 'DSA', subCategory: '', focused: 0, assigned: 0 }]);
+    setSessions([...sessions, { category: 'Sudden', subCategory: '', focused: 0, assigned: 0 }]);
   };
 
   const removeSessionRow = (index) => {
     setSessions(sessions.filter((_, i) => i !== index));
   };
 
-  // 3. SUBMIT (Save & Show Modal)
+  // 3. SUBMIT
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -89,8 +136,8 @@ export default function DailyEntryForm() {
       if (editingId) {
         await axios.put(`${import.meta.env.VITE_API_URL}/api/focus/${editingId}`, { sessions: cleanSessions, notes });
       } else {
-        const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/focus`, { date, sessions: cleanSessions, notes });
-        setEditingId(res.data._id);
+        // Ensure we send the IST Date
+        await axios.post(`${import.meta.env.VITE_API_URL}/api/focus`, { date, sessions: cleanSessions, notes });
       }
       
       // Calculate Stats for Modal
@@ -99,11 +146,10 @@ export default function DailyEntryForm() {
       const efficiency = totalAssigned > 0 ? Math.round((totalFocused / totalAssigned) * 100) : 0;
 
       setModalStats({ totalFocused, totalAssigned, efficiency });
-      setShowModal(true); // <--- OPEN MODAL
+      setShowModal(true);
       
       // Refresh background data
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/focus`);
-      setLogs(res.data);
+      fetchLogs(); // This will reload the table below
 
     } catch (err) {
       console.error(err);
@@ -117,10 +163,8 @@ export default function DailyEntryForm() {
       await axios.delete(`${import.meta.env.VITE_API_URL}/api/focus/${id}`);
       toast.success('Entry Deleted');
       if (id === editingId) {
-        setEditingId(null);
-        setDate(new Date().toISOString().split('T')[0]);
-        setNotes('');
-        setSessions([{ category: 'Maths', subCategory: '', focused: 0, assigned: 0 }]);
+        // Reset to today
+        resetFormForNewDay(getTodayIST());
       }
       fetchLogs();
     } catch (err) {
@@ -187,7 +231,7 @@ export default function DailyEntryForm() {
         <div className="flex justify-between items-center mb-6">
            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
              {editingId ? <Edit2 className="text-primary" /> : <Plus className="text-zinc-500" />}
-             {editingId ? 'Control Panel: Today' : 'Start New Day'}
+             {editingId ? 'Control Panel: Today' : 'Initialize New Day'}
            </h2>
            <div className="text-xs text-zinc-500 font-mono bg-black/50 px-3 py-1 rounded-full border border-white/5">
               {editingId ? 'LIVE EDIT MODE' : 'CREATION MODE'}
@@ -197,13 +241,12 @@ export default function DailyEntryForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Date</label>
+              <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Date (IST)</label>
               <input 
                 type="date" 
                 value={date} 
-                onChange={e => setDate(e.target.value)}
-                disabled={!!editingId} 
-                className={`w-full bg-black border border-white/10 rounded-xl p-3 text-white outline-none focus:border-primary ${editingId ? 'opacity-50' : ''}`}
+                disabled // Lock date to today to prevent errors
+                className="w-full bg-black border border-white/10 rounded-xl p-3 text-white font-mono opacity-50 cursor-not-allowed"
               />
             </div>
             <div className="md:col-span-2">
@@ -234,11 +277,8 @@ export default function DailyEntryForm() {
                   onChange={(e) => handleSessionChange(index, 'category', e.target.value)}
                   className="bg-zinc-900 text-white p-2 rounded-lg border border-white/10 outline-none w-full md:w-32 focus:border-primary"
                 >
+                  <option value="Sudden">Sudden / Ad-Hoc</option>
                   {user?.tracks?.map((t, i) => <option key={i} value={t.name}>{t.name}</option>)}
-                  <option value="Maths">Maths</option>
-                  <option value="DSA">DSA</option>
-                  <option value="Dev">Dev</option>
-                  <option value="Sudden">Sudden</option>
                 </select>
 
                 <input 
@@ -275,7 +315,7 @@ export default function DailyEntryForm() {
           </div>
 
           <button type="submit" className="w-full py-4 bg-white text-black font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-zinc-200 transition-all">
-            <Save size={18} /> {editingId ? 'Update Day Plan' : 'Start Day'}
+            <Save size={18} /> {editingId ? 'Update Day Plan' : 'Initialize Day'}
           </button>
         </form>
       </div>
@@ -303,7 +343,7 @@ export default function DailyEntryForm() {
                       {log.notes && <p className="text-zinc-400 text-sm italic line-clamp-1">"{log.notes}"</p>}
                    </div>
                    <div className="flex flex-wrap gap-2">
-                     {log.sessions.map((s, i) => (
+                     {log.sessions.slice(0, 4).map((s, i) => (
                        <div key={i} className="flex items-center gap-2 bg-black px-3 py-1.5 rounded-lg border border-white/10">
                          <span className="text-xs font-bold text-zinc-300 uppercase">{s.category}</span>
                          <span className="text-xs font-mono text-white">{s.focused}h</span>

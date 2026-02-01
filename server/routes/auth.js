@@ -91,35 +91,30 @@ router.put('/todos', auth, async (req, res) => {
 });
 
 // @route   PUT /api/auth/update
-// @desc    Force update tracks (Add/Remove/Edit)
+// @desc    Force atomic update of tracks
 router.put('/update', auth, async (req, res) => {
   try {
     const { tracks } = req.body;
 
-    const user = await User.findById(req.user.id);
+    // 1. Sanitize: Create a clean array without internal Mongoose IDs
+    const cleanTracks = tracks ? tracks.map(t => ({
+      name: t.name,
+      currentTopic: t.currentTopic || ''
+    })) : [];
+
+    // 2. Atomic Update: This overwrites the 'tracks' array directly in the DB
+    const user = await User.findOneAndUpdate(
+      { _id: req.user.id },
+      { $set: { tracks: cleanTracks } },
+      { new: true } // Return the updated doc immediately
+    ).select('-password'); // Exclude password from result
+
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // FIX: Explicitly overwrite the array. 
-    // We map to a clean object to strip any old '_id's that might confuse Mongoose.
-    if (tracks) {
-      user.tracks = tracks.map(t => ({
-        name: t.name,
-        currentTopic: t.currentTopic || '' // Ensure topic is never null
-      }));
-    }
-
-    await user.save();
-
-    res.json({ 
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        tracks: user.tracks
-      }
-    });
+    res.json({ user });
+    
   } catch (err) {
-    console.error("Settings Update Error:", err.message);
+    console.error("Atomic Update Error:", err.message);
     res.status(500).send('Server Error');
   }
 });

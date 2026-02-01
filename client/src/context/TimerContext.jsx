@@ -2,7 +2,7 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext } from './AuthContext';
-
+import { getTodayIST } from '../utils/dateHelpers'; // <--- IMPORT
 export const TimerContext = createContext();
 
 export const TimerProvider = ({ children }) => {
@@ -48,7 +48,7 @@ export const TimerProvider = ({ children }) => {
     const hours = (seconds / 3600).toFixed(2);
 
     try {
-      const today = new Date().toLocaleDateString('en-CA');
+      const today = getTodayIST();
       
       const payload = {
         date: today,
