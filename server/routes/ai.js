@@ -33,8 +33,7 @@ router.post('/analyze', auth, async (req, res) => {
     // 3. Initialize Model (UPDATED TO AVAILABLE MODEL)
     // We use gemini-2.5-flash as it is in your available list and optimized for speed.
     //const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });    const prompt = `
       You are an elite cognitive performance coach. 
       Analyze this JSON work log:
       ${JSON.stringify(dataSummary)}
