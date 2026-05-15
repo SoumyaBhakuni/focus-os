@@ -245,7 +245,7 @@ export default function DailyEntryForm() {
               <input 
                 type="date" 
                 value={date} 
-                disabled // Lock date to today to prevent errors
+                onChange={(e) => setDate(e.target.value)}
                 className="w-full bg-black border border-white/10 rounded-xl p-3 text-white font-mono opacity-50 cursor-not-allowed"
               />
 
