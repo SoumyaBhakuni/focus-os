@@ -241,16 +241,16 @@ export default function DailyEntryForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Date (IST)</label>
+              {/*<label className="text-xs font-bold text-zinc-500 uppercase ml-1">Date (IST)</label>
               <input 
                 type="date" 
                 value={date} 
-                onChange={(e) => setDate(e.target.value)}
+                disabled // Lock date to today to prevent errors
                 className="w-full bg-black border border-white/10 rounded-xl p-3 text-white font-mono opacity-50 cursor-not-allowed"
               />
 
-              {/*
-              Temporary Admin Version
+              
+              Temporary Admin Version*/}
               <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Date (IST) - UNLOCKED</label>
               <input 
                 type="date" 
@@ -258,7 +258,6 @@ export default function DailyEntryForm() {
                 onChange={(e) => setDate(e.target.value)} // ✅ Allow manual selection
                 className="w-full bg-black border border-primary/50 rounded-xl p-3 text-white font-mono opacity-100 cursor-pointer" // UI feedback that it's unlocked
               />
-              */}
               
             </div>
             <div className="md:col-span-2">
